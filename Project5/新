@@ -1,0 +1,267 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <time.h>
+
+#define boardsize 19
+#define winlength 6
+#define maxmove (boardsize * boardsize / 2) // 最大允许的步数
+
+char board[boardsize][boardsize];
+
+// 结构体表示落子位置
+typedef struct {
+    int row;
+    int col;
+} Move;
+
+
+void initializeBoard() {
+    for (int i = 0; i < boardsize; ++i) {
+        for (int j = 0; j < boardsize; ++j) {
+            board[i][j] = ' ';
+        }
+    }
+}//初始化一个19×19的棋盘
+
+
+void printBoard() {
+    for (int i = 0; i < boardsize; ++i) {
+        for (int j = 0; j < boardsize; ++j) {
+            printf("%c ", board[i][j]);
+        }
+        printf("\n");
+    }
+}//把棋盘打印出来
+
+
+// 判断是否有效落子位置
+int isMoveValid(int row, int col) {
+   
+    if (row < 0 || row >= boardsize || col < 0 || col >= boardsize) {
+        return 0; // 不在范围内，位置无效
+    }
+    if (board[row][col] == ' ') {
+        return 1; // 位置为空，有效
+    }
+    else {
+        return 0; // 位置非空，无效
+    }
+}
+
+
+int isGameOver(int lastRow, int lastCol, char player) {
+    int count;
+
+    // 检查横向
+    count = 0;
+    for (int i = 0; i < boardsize; ++i) {
+        if (board[lastRow][i] == player) {
+            count++;
+            if (count == winlength) 
+                return 1;
+        }
+        else {
+            count = 0;//如果不是连着的棋子则count归零
+        }
+    }
+
+    // 检查纵向
+    count = 0;
+    for (int i = 0; i < boardsize; ++i) {
+        if (board[i][lastCol] == player) {
+            count++;
+            if (count == winlength) return 1;
+        }
+        else {
+            count = 0;
+        }
+    }
+
+    // 检查主对角线
+    count = 0;
+    for (int i = -winlength + 1; i < winlength; ++i) {
+        int row = lastRow + i;
+        int col = lastCol + i;
+        if (row >= 0 && row < boardsize && col >= 0 && col < boardsize) {
+            if (board[row][col] == player) {
+                count++;
+                if (count == winlength) 
+                    return 1;
+            }
+            else {
+                count = 0;
+            }
+        }
+    }
+
+    // 检查副对角线
+    count = 0;
+    for (int i = -winlength + 1; i < winlength; ++i) {
+        int row = lastRow + i;
+        int col = lastCol - i;
+        if (row >= 0 && row < boardsize && col >= 0 && col < boardsize) {
+            if (board[row][col] == player) {
+                count++;
+                if (count == winlength) 
+                    return 1;
+            }
+            else {
+                count = 0;
+            }
+        }
+    }
+
+    return 0;
+}// 判断是否游戏结束
+
+
+int getValidMoves(Move validMoves[]) {
+    int count = 0;
+    for (int i = 0; i < boardsize; ++i) {
+        for (int j = 0; j < boardsize; ++j) {
+            if (isMoveValid(i, j)) {
+                validMoves[count].row = i;
+                validMoves[count].col = j;
+                count++;//如果位置为空，则将这个位置记录到validmoves数组中，递增count，函数返回合法落子位置的数量。
+            }
+        }
+    }
+    return count;
+}// 获取所有合法的落子位置
+
+// 计算估值函数
+int evaluate() {
+    
+}
+
+// Mini-Max算法
+int minimax(int depth, int isMaximizingPlayer, int alpha, int beta) {
+    if (depth == 0 || isGameOver(0, 0, 'X') || isGameOver(0, 0, 'O')) {
+        return evaluate();
+    }
+
+    Move validMoves[boardsize * boardsize];
+    int numMoves = getValidMoves(validMoves);
+
+    if (isMaximizingPlayer) {
+        int maxEval = INT_MIN;
+        for (int i = 0; i < numMoves; ++i) {
+            int row = validMoves[i].row;
+            int col = validMoves[i].col;
+            board[row][col] = 'X';
+            int eval = minimax(depth - 1, 0, alpha, beta);
+            board[row][col] = ' ';
+            maxEval = eval > maxEval ? eval : maxEval;
+            alpha = eval > alpha ? eval : alpha;
+            if (beta <= alpha) break;
+        }
+        return maxEval;
+    }
+    else {
+        int minEval = INT_MAX;
+        for (int i = 0; i < numMoves; ++i) {
+            int row = validMoves[i].row;
+            int col = validMoves[i].col;
+            board[row][col] = 'O';
+            int eval = minimax(depth - 1, 1, alpha, beta);
+            board[row][col] = ' ';
+            minEval = eval < minEval ? eval : minEval;
+            beta = eval < beta ? eval : beta;
+            if (beta <= alpha) break;
+        }
+        return minEval;
+    }
+}
+
+// Alpha-Beta剪枝算法
+Move alphaBetaPruning() {
+    Move bestMove;
+    int maxEval = INT_MIN;
+    int alpha = INT_MIN;
+    int beta = INT_MAX;
+
+    Move validMoves[boardsize * boardsize];
+    int numMoves = getValidMoves(validMoves);
+
+    for (int i = 0; i < numMoves; ++i) {
+        int row = validMoves[i].row;
+        int col = validMoves[i].col;
+        board[row][col] = 'X';
+        int eval = minimax(3, 0, alpha, beta); // 这里的3可以调整为更大的深度
+        board[row][col] = ' ';
+
+        if (eval > maxEval) {
+            maxEval = eval;
+            bestMove = validMoves[i];
+        }
+
+        alpha = eval > alpha ? eval : alpha;
+        if (beta <= alpha) break;
+    }
+
+    return bestMove;
+}
+
+// 执行玩家的落子
+void playerMove() {
+    int row, col;
+
+    do {
+        printf("请输入你的落子位置 (行 列): ");
+        scanf_s("%d %d", &row, &col);
+
+        if (!isMoveValid(row, col)) {
+            printf("无效的落子位置，请重试。\n");
+        }
+    } while (!isMoveValid(row, col));
+
+    board[row][col] = 'O';
+}
+
+// 执行计算机的落子
+void computerMove() {
+    Move bestMove = alphaBetaPruning();
+    board[bestMove.row][bestMove.col] = 'X';
+}
+
+// 游戏主循环
+void playGame() {
+    char currentPlayer = 'O';
+    int moves = 0;
+
+    while (moves < maxmove) {
+        printBoard();
+
+        if (currentPlayer == 'O') {
+            playerMove();
+        }
+        else {
+            computerMove();
+        }
+
+        if (isGameOver(0, 0, currentPlayer)) {
+            printBoard();
+            printf("%c方获胜！\n", currentPlayer);
+            break;
+        }
+
+        currentPlayer = (currentPlayer == 'O') ? 'X' : 'O'; // 切换玩家
+
+        moves++;
+    }
+
+    if (moves == maxmove) {
+        printBoard();
+        printf("和局！\n");
+    }
+}
+
+int main() {
+    srand(time(NULL)); // 初始化随机数种子
+
+    initializeBoard();
+    playGame();
+
+    return 0;
+}
